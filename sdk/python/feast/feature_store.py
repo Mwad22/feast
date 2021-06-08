@@ -244,7 +244,7 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def get_historical_features(
-        self, entity_df: Union[pd.DataFrame, str], feature_refs: List[str],
+        self, entity_df: Union[pd.DataFrame, str], feature_refs: List[str], feature_names_only: bool= False
     ) -> RetrievalJob:
         """Enrich an entity dataframe with historical feature values for either training or batch scoring.
 
@@ -283,7 +283,6 @@ class FeatureStore:
             >>> feature_data = retrieval_job.to_df()
             >>> model.fit(feature_data) # insert your modeling framework here.
         """
-
         all_feature_views = self._registry.list_feature_views(project=self.project)
         try:
             feature_views = _get_requested_feature_views(
@@ -301,6 +300,7 @@ class FeatureStore:
                 entity_df,
                 self._registry,
                 self.project,
+                feature_names_only
             )
         except FeastProviderLoginError as e:
             sys.exit(e)

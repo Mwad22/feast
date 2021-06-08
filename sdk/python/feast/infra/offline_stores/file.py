@@ -39,6 +39,7 @@ class FileOfflineStore(OfflineStore):
         entity_df: Union[pd.DataFrame, str],
         registry: Registry,
         project: str,
+        feature_names_only: bool =False,
     ) -> FileRetrievalJob:
         if not isinstance(entity_df, pd.DataFrame):
             raise ValueError(
@@ -58,9 +59,8 @@ class FileOfflineStore(OfflineStore):
                 raise ValueError(
                     f"Please provide an entity_df with a column named {DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL} representing the time of events."
                 )
-
         feature_views_to_features = _get_requested_feature_views_to_features_dict(
-            feature_refs, feature_views
+            feature_refs, feature_views, feature_names_only
         )
 
         # Create lazy function that is only called from the RetrievalJob object
@@ -124,8 +124,10 @@ class FileOfflineStore(OfflineStore):
                     # Modify the separator for feature refs in column names to double underscore. We are using
                     # double underscore as separator for consistency with other databases like BigQuery,
                     # where there are very few characters available for use as separators
-                    prefixed_feature_name = f"{feature_view.name}__{feature}"
-
+                    if feature_names_only:
+                        prefixed_feature_name = f"{feature}"
+                    else: 
+                        prefixed_feature_name = f"{feature_view.name}__{feature}"
                     # Add the feature name to the list of columns
                     feature_names.append(prefixed_feature_name)
 

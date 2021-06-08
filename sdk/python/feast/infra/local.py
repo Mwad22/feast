@@ -215,6 +215,7 @@ class LocalProvider(Provider):
         entity_df: Union[pd.DataFrame, str],
         registry: Registry,
         project: str,
+        feature_names_only: bool = False
     ) -> RetrievalJob:
         return self.offline_store.get_historical_features(
             config=config,
@@ -223,6 +224,7 @@ class LocalProvider(Provider):
             entity_df=entity_df,
             registry=registry,
             project=project,
+            feature_names_only= feature_names_only
         )
 
 
