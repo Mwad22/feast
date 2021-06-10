@@ -244,7 +244,10 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def get_historical_features(
-        self, entity_df: Union[pd.DataFrame, str], feature_refs: List[str], feature_names_only: bool= False
+        self,
+        entity_df: Union[pd.DataFrame, str],
+        feature_refs: List[str],
+        feature_names_only: bool = True,
     ) -> RetrievalJob:
         """Enrich an entity dataframe with historical feature values for either training or batch scoring.
 
@@ -266,6 +269,10 @@ class FeatureStore:
                 SQL query. The query must be of a format supported by the configured offline store (e.g., BigQuery)
             feature_refs: A list of features that should be retrieved from the offline store. Feature references are of
                 the format "feature_view:feature", e.g., "customer_fv:daily_transactions".
+            feature_names_only: By default, this value is set to True. This strips the feature view prefixes from the data
+                and returns only the feature name, changing them from the format "feature_view__feature" to "feature" 
+                (e.g., "customer_fv__daily_transactions" changes to "daily_transactions"). Set the value to False for
+                the feature names to be prefixed by the feature view name in the format "feature_view__feature". 
 
         Returns:
             RetrievalJob which can be used to materialize the results.
@@ -278,8 +285,9 @@ class FeatureStore:
             >>> fs = FeatureStore(config=RepoConfig(provider="gcp"))
             >>> retrieval_job = fs.get_historical_features(
             >>>     entity_df="SELECT event_timestamp, order_id, customer_id from gcp_project.my_ds.customer_orders",
-            >>>     feature_refs=["customer:age", "customer:avg_orders_1d", "customer:avg_orders_7d"]
-            >>> )
+            >>>     feature_refs=["customer:age", "customer:avg_orders_1d", "customer:avg_orders_7d"],
+            >>>     feature_names_only=True
+            >>>     )
             >>> feature_data = retrieval_job.to_df()
             >>> model.fit(feature_data) # insert your modeling framework here.
         """
@@ -300,7 +308,7 @@ class FeatureStore:
                 entity_df,
                 self._registry,
                 self.project,
-                feature_names_only
+                feature_names_only,
             )
         except FeastProviderLoginError as e:
             sys.exit(e)
@@ -453,7 +461,7 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def get_online_features(
-        self, feature_refs: List[str], entity_rows: List[Dict[str, Any]],
+        self, feature_refs: List[str], entity_rows: List[Dict[str, Any]], feature_names_only: bool = True
     ) -> OnlineResponse:
         """
         Retrieves the latest online feature data.
@@ -521,7 +529,7 @@ class FeatureStore:
             project=self.project, allow_cache=True
         )
 
-        grouped_refs = _group_refs(feature_refs, all_feature_views)
+        grouped_refs = _group_refs(feature_refs, all_feature_views, feature_names_only)
         for table, requested_features in grouped_refs:
             entity_keys = _get_table_entity_keys(
                 table, union_of_entity_keys, entity_name_to_join_key_map
@@ -535,13 +543,13 @@ class FeatureStore:
 
                 if feature_data is None:
                     for feature_name in requested_features:
-                        feature_ref = f"{table.name}__{feature_name}"
+                        feature_ref = f"{feature_name}" if feature_names_only else f"{table.name}__{feature_name}"
                         result_row.statuses[
                             feature_ref
                         ] = GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND
                 else:
                     for feature_name in feature_data:
-                        feature_ref = f"{table.name}__{feature_name}"
+                        feature_ref = f"{feature_name}" if feature_names_only else f"{table.name}__{feature_name}"
                         if feature_name in requested_features:
                             result_row.fields[feature_ref].CopyFrom(
                                 feature_data[feature_name]
@@ -570,7 +578,7 @@ def _entity_row_to_field_values(
 
 
 def _group_refs(
-    feature_refs: List[str], all_feature_views: List[FeatureView]
+    feature_refs: List[str], all_feature_views: List[FeatureView], feature_names_only:bool = True
 ) -> List[Tuple[FeatureView, List[str]]]:
     """ Get list of feature views and corresponding feature names based on feature references"""
 
@@ -580,11 +588,26 @@ def _group_refs(
     # view name to feature names
     views_features = defaultdict(list)
 
+    # feature set
+    feature_set = set() 
+    # feature names that collide
+    feature_collision_set = set()  
+
     for ref in feature_refs:
         view_name, feat_name = ref.split(":")
+        if feat_name in feature_set:
+            feature_collision_set.add(feat_name)
+        else:
+            feature_set.add(feat_name)
         if view_name not in view_index:
             raise FeatureViewNotFoundException(view_name)
         views_features[view_name].append(feat_name)
+
+    if feature_names_only and len(feature_collision_set) > 0:
+        err = ", ".join(x for x in feature_collision_set)
+        raise ValueError(
+            f"The following feature name(s) have collisions: {err}. Set 'feature_names_only' argument in get_online_features() to False to use the full feature name which is prefixed by the feature view name."
+        )
 
     result = []
     for view_name, feature_names in views_features.items():

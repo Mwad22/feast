@@ -116,7 +116,7 @@ class Provider(abc.ABC):
         entity_df: Union[pandas.DataFrame, str],
         registry: Registry,
         project: str,
-        feature_names_only: bool = False
+        feature_names_only: bool = True,
     ) -> RetrievalJob:
         pass
 
@@ -179,31 +179,24 @@ def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
 
 
 def _get_requested_feature_views_to_features_dict(
-    feature_refs: List[str], feature_views: List[FeatureView], feature_names_only: bool
+    feature_refs: List[str], feature_views: List[FeatureView], feature_names_only: bool 
 ) -> Dict[FeatureView, List[str]]:
-    """Create a dict of FeatureView -> List[Feature] for all requested features"""
+    """Create a dict of FeatureView -> List[Feature] for all requested features. 
+    Features are prefixed by the feature view name, set value to True to obtain only the feature names."""
 
     feature_views_to_feature_map = {}  # type: Dict[FeatureView, List[str]]
-    feature_set = set()
-    feature_collision_map = {} # type: Dict[str, int]
-
-    # Helper function that checks for collisions in feature names across feature views
-    def checkCollision(feature):
-        if feature in feature_set:
-            if feature in feature_collision_map:
-                feature_collision_map[feature] += 1 
-            else:
-                feature_collision_map[feature] = 1
-        else:
-            feature_set.add(feature)
-
+    feature_set = set()  # type: Set[str]
+    feature_collision_set = set()  # type: Set[str]
 
     for ref in feature_refs:
         ref_parts = ref.split(":")
         feature_view_from_ref = ref_parts[0]
         feature_from_ref = ref_parts[1]
-        checkCollision(feature_from_ref)
-        
+        if feature_from_ref in feature_set:
+            feature_collision_set.add(feature_from_ref)
+        else:
+            feature_set.add(feature_from_ref)
+
         found = False
         for feature_view_from_registry in feature_views:
             if feature_view_from_registry.name == feature_view_from_ref:
@@ -220,9 +213,11 @@ def _get_requested_feature_views_to_features_dict(
         if not found:
             raise ValueError(f"Could not find feature view from reference {ref}")
 
-    if feature_names_only and len(feature_collision_map)>0:
-        err = ", ".join(x  for x, _ in feature_collision_map.items())
-        raise ValueError(f"Following feature name have collisions: {err}. Set 'feature_names_only' argument in get_historical_features() to False to ignore this check.")
+    if feature_names_only and len(feature_collision_set) > 0:
+        err = ", ".join(x for x in feature_collision_set)
+        raise ValueError(
+            f"The following feature name(s) have collisions: {err}. Set 'feature_names_only' argument in get_historical_features() to False to use the full feature name which is prefixed by the feature view name."
+        )
 
     return feature_views_to_feature_map
 

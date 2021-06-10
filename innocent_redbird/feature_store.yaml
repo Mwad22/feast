@@ -1,0 +1,3 @@
+project: feast-twitter
+registry: data/registry.db
+provider: gcp

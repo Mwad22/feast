@@ -28,6 +28,8 @@ training_df = store.get_historical_features(
     ], 
 ).to_df()
 
+print(training_df)
+
 for feature_name in training_df.columns:
     print(feature_name)
 
@@ -45,6 +47,8 @@ training_df = store.get_historical_features(
     ], 
     feature_names_only = True,
 ).to_df()
+
+print(training_df)
 
 for feature_name in training_df.columns:
     print(feature_name)

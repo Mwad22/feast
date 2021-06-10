@@ -39,7 +39,7 @@ class FileOfflineStore(OfflineStore):
         entity_df: Union[pd.DataFrame, str],
         registry: Registry,
         project: str,
-        feature_names_only: bool =False,
+        feature_names_only: bool = True,
     ) -> FileRetrievalJob:
         if not isinstance(entity_df, pd.DataFrame):
             raise ValueError(
@@ -126,7 +126,7 @@ class FileOfflineStore(OfflineStore):
                     # where there are very few characters available for use as separators
                     if feature_names_only:
                         prefixed_feature_name = f"{feature}"
-                    else: 
+                    else:
                         prefixed_feature_name = f"{feature_view.name}__{feature}"
                     # Add the feature name to the list of columns
                     feature_names.append(prefixed_feature_name)

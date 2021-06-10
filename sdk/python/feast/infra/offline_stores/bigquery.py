@@ -82,6 +82,7 @@ class BigQueryOfflineStore(OfflineStore):
         entity_df: Union[pandas.DataFrame, str],
         registry: Registry,
         project: str,
+        feature_names_only: bool = True,
     ) -> RetrievalJob:
         # TODO: Add entity_df validation in order to fail before interacting with BigQuery
 
@@ -115,7 +116,7 @@ class BigQueryOfflineStore(OfflineStore):
 
         # Build a query context containing all information required to template the BigQuery SQL query
         query_context = get_feature_view_query_context(
-            feature_refs, feature_views, registry, project
+            feature_refs, feature_views, registry, project, feature_names_only
         )
 
         # TODO: Infer min_timestamp and max_timestamp from entity_df
@@ -126,6 +127,7 @@ class BigQueryOfflineStore(OfflineStore):
             max_timestamp=datetime.now() + timedelta(days=1),
             left_table_query_string=entity_df_sql_table,
             entity_df_event_timestamp_col=entity_df_event_timestamp_col,
+            feature_names_only= feature_names_only
         )
 
         job = BigQueryRetrievalJob(query=query, client=client)
@@ -236,11 +238,12 @@ def get_feature_view_query_context(
     feature_views: List[FeatureView],
     registry: Registry,
     project: str,
+    feature_names_only:bool = True,
 ) -> List[FeatureViewQueryContext]:
     """Build a query context containing all information required to template a BigQuery point-in-time SQL query"""
 
     feature_views_to_feature_map = _get_requested_feature_views_to_features_dict(
-        feature_refs, feature_views
+        feature_refs, feature_views, feature_names_only
     )
 
     query_context = []
@@ -295,8 +298,10 @@ def build_point_in_time_query(
     max_timestamp: datetime,
     left_table_query_string: str,
     entity_df_event_timestamp_col: str,
+    feature_names_only:bool = True
 ):
     """Build point-in-time query between each feature view table and the entity dataframe"""
+    
     template = Environment(loader=BaseLoader()).from_string(
         source=SINGLE_FEATURE_VIEW_POINT_IN_TIME_JOIN
     )
@@ -311,6 +316,7 @@ def build_point_in_time_query(
             [entity for fv in feature_view_query_contexts for entity in fv.entities]
         ),
         "featureviews": [asdict(context) for context in feature_view_query_contexts],
+        "feature_names_only": feature_names_only
     }
 
     query = template.render(template_context)
@@ -403,7 +409,7 @@ SELECT
   event_timestamp,
   {{ featureview.entities | join(', ')}},
   {% for feature in featureview.features %}
-  IF(event_timestamp >= {{ featureview.name }}_feature_timestamp {% if featureview.ttl == 0 %}{% else %}AND Timestamp_sub(event_timestamp, interval {{ featureview.ttl }} second) < {{ featureview.name }}_feature_timestamp{% endif %}, {{ featureview.name }}__{{ feature }}, NULL) as {{ featureview.name }}__{{ feature }}{% if loop.last %}{% else %}, {% endif %}
+  IF(event_timestamp >= {{ featureview.name }}_feature_timestamp {% if featureview.ttl == 0 %}{% else %}AND Timestamp_sub(event_timestamp, interval {{ featureview.ttl }} second) < {{ featureview.name }}_feature_timestamp{% endif %}, {% if feature_names_only %}{{feature}}{% else %}{{ featureview.name }}__{{ feature }}{% endif %}, NULL) as {% if feature_names_only %}{{feature}}{% else %}{{ featureview.name }}__{{ feature }}{% endif %}{% if loop.last %}{% else %}, {% endif %}
   {% endfor %}
 FROM (
 SELECT
@@ -426,7 +432,7 @@ SELECT
   {{ featureview.created_timestamp_column ~ ' as created_timestamp,' if featureview.created_timestamp_column else '' }}
   {{ featureview.entity_selections | join(', ')}},
   {% for feature in featureview.features %}
-  {{ feature }} as {{ featureview.name }}__{{ feature }}{% if loop.last %}{% else %}, {% endif %}
+  {{ feature }} as {% if feature_names_only %}{{feature}}{% else %}{{ featureview.name }}__{{ feature }}{% endif %}{% if loop.last %}{% else %}, {% endif %}
   {% endfor %}
 FROM {{ featureview.table_subquery }} WHERE {{ featureview.event_timestamp_column }} <= '{{ max_timestamp }}'
 {% if featureview.ttl == 0 %}{% else %}AND {{ featureview.event_timestamp_column }} >= Timestamp_sub(TIMESTAMP '{{ min_timestamp }}', interval {{ featureview.ttl }} second){% endif %}
@@ -454,7 +460,7 @@ LEFT JOIN (
     SELECT
     entity_row_unique_id,
     {% for feature in featureview.features %}
-    {{ featureview.name }}__{{ feature }}{% if loop.last %}{% else %}, {% endif %}
+    {% if feature_names_only %}{{feature}}{% else %}{{ featureview.name }}__{{ feature }}{% endif %}{% if loop.last %}{% else %}, {% endif %}
     {% endfor %}
     FROM {{ featureview.name }}__deduped
 ) USING (entity_row_unique_id)
