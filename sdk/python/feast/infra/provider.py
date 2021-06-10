@@ -2,7 +2,7 @@ import abc
 import importlib
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple, Union
 
 import pandas
 import pyarrow
@@ -179,9 +179,9 @@ def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
 
 
 def _get_requested_feature_views_to_features_dict(
-    feature_refs: List[str], feature_views: List[FeatureView], feature_names_only: bool 
+    feature_refs: List[str], feature_views: List[FeatureView], feature_names_only: bool
 ) -> Dict[FeatureView, List[str]]:
-    """Create a dict of FeatureView -> List[Feature] for all requested features. 
+    """Create a dict of FeatureView -> List[Feature] for all requested features.
     Features are prefixed by the feature view name, set value to True to obtain only the feature names."""
 
     feature_views_to_feature_map = {}  # type: Dict[FeatureView, List[str]]

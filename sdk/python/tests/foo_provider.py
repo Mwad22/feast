@@ -62,6 +62,7 @@ class FooProvider(Provider):
         entity_df: Union[pandas.DataFrame, str],
         registry: Registry,
         project: str,
+        feature_names_only: bool = True,
     ) -> RetrievalJob:
         pass
 

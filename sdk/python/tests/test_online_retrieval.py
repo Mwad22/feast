@@ -98,7 +98,7 @@ def test_online() -> None:
                 "customer_driver_combined:trips",
             ],
             entity_rows=[{"driver": 1, "customer": 5}, {"driver": 1, "customer": 5}],
-            feature_names_only=False
+            feature_names_only=False,
         ).to_dict()
 
         assert "driver_locations__lon" in result
@@ -121,7 +121,7 @@ def test_online() -> None:
                 "customer_driver_combined:trips",
             ],
             entity_rows=[{"driver": 1, "customer": 5}, {"driver": 1, "customer": 5}],
-            feature_names_only=True
+            feature_names_only=True,
         ).to_dict()
 
         assert "lon" in result
@@ -134,12 +134,11 @@ def test_online() -> None:
         assert result["name"] == ["John", "John"]
         assert result["trips"] == [7, 7]
 
-
         # Ensure features are still in result when keys not found
         result = store.get_online_features(
             feature_refs=["customer_driver_combined:trips"],
             entity_rows=[{"driver": 0, "customer": 0}],
-            feature_names_only=False
+            feature_names_only=False,
         ).to_dict()
 
         assert "customer_driver_combined__trips" in result
@@ -147,7 +146,9 @@ def test_online() -> None:
         # invalid table reference
         with pytest.raises(FeatureViewNotFoundException):
             store.get_online_features(
-                feature_refs=["driver_locations_bad:lon"], entity_rows=[{"driver": 1}],feature_names_only=False
+                feature_refs=["driver_locations_bad:lon"],
+                entity_rows=[{"driver": 1}],
+                feature_names_only=False,
             )
 
         # Create new FeatureStore object with fast cache invalidation
@@ -172,7 +173,7 @@ def test_online() -> None:
                 "customer_driver_combined:trips",
             ],
             entity_rows=[{"driver": 1, "customer": 5}],
-            feature_names_only=False
+            feature_names_only=False,
         ).to_dict()
         assert result["driver_locations__lon"] == ["1.0"]
         assert result["customer_driver_combined__trips"] == [7]
@@ -193,7 +194,7 @@ def test_online() -> None:
                     "customer_driver_combined:trips",
                 ],
                 entity_rows=[{"driver": 1, "customer": 5}],
-                feature_names_only=False
+                feature_names_only=False,
             ).to_dict()
 
         # Restore registry.db so that we can see if it actually reloads registry
@@ -208,7 +209,7 @@ def test_online() -> None:
                 "customer_driver_combined:trips",
             ],
             entity_rows=[{"driver": 1, "customer": 5}],
-            feature_names_only=False
+            feature_names_only=False,
         ).to_dict()
         assert result["driver_locations__lon"] == ["1.0"]
         assert result["customer_driver_combined__trips"] == [7]
@@ -234,7 +235,7 @@ def test_online() -> None:
                 "customer_driver_combined:trips",
             ],
             entity_rows=[{"driver": 1, "customer": 5}],
-            feature_names_only=False
+            feature_names_only=False,
         ).to_dict()
         assert result["driver_locations__lon"] == ["1.0"]
         assert result["customer_driver_combined__trips"] == [7]
@@ -254,7 +255,7 @@ def test_online() -> None:
                 "customer_driver_combined:trips",
             ],
             entity_rows=[{"driver": 1, "customer": 5}],
-            feature_names_only=False
+            feature_names_only=False,
         ).to_dict()
         assert result["driver_locations__lon"] == ["1.0"]
         assert result["customer_driver_combined__trips"] == [7]

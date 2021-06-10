@@ -127,7 +127,7 @@ class BigQueryOfflineStore(OfflineStore):
             max_timestamp=datetime.now() + timedelta(days=1),
             left_table_query_string=entity_df_sql_table,
             entity_df_event_timestamp_col=entity_df_event_timestamp_col,
-            feature_names_only= feature_names_only
+            feature_names_only=feature_names_only,
         )
 
         job = BigQueryRetrievalJob(query=query, client=client)
@@ -238,7 +238,7 @@ def get_feature_view_query_context(
     feature_views: List[FeatureView],
     registry: Registry,
     project: str,
-    feature_names_only:bool = True,
+    feature_names_only: bool = True,
 ) -> List[FeatureViewQueryContext]:
     """Build a query context containing all information required to template a BigQuery point-in-time SQL query"""
 
@@ -298,10 +298,10 @@ def build_point_in_time_query(
     max_timestamp: datetime,
     left_table_query_string: str,
     entity_df_event_timestamp_col: str,
-    feature_names_only:bool = True
+    feature_names_only: bool = True,
 ):
     """Build point-in-time query between each feature view table and the entity dataframe"""
-    
+
     template = Environment(loader=BaseLoader()).from_string(
         source=SINGLE_FEATURE_VIEW_POINT_IN_TIME_JOIN
     )
@@ -316,7 +316,7 @@ def build_point_in_time_query(
             [entity for fv in feature_view_query_contexts for entity in fv.entities]
         ),
         "featureviews": [asdict(context) for context in feature_view_query_contexts],
-        "feature_names_only": feature_names_only
+        "feature_names_only": feature_names_only,
     }
 
     query = template.render(template_context)

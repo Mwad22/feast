@@ -270,9 +270,9 @@ class FeatureStore:
             feature_refs: A list of features that should be retrieved from the offline store. Feature references are of
                 the format "feature_view:feature", e.g., "customer_fv:daily_transactions".
             feature_names_only: By default, this value is set to True. This strips the feature view prefixes from the data
-                and returns only the feature name, changing them from the format "feature_view__feature" to "feature" 
+                and returns only the feature name, changing them from the format "feature_view__feature" to "feature"
                 (e.g., "customer_fv__daily_transactions" changes to "daily_transactions"). Set the value to False for
-                the feature names to be prefixed by the feature view name in the format "feature_view__feature". 
+                the feature names to be prefixed by the feature view name in the format "feature_view__feature".
 
         Returns:
             RetrievalJob which can be used to materialize the results.
@@ -461,7 +461,10 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def get_online_features(
-        self, feature_refs: List[str], entity_rows: List[Dict[str, Any]], feature_names_only: bool = True
+        self,
+        feature_refs: List[str],
+        entity_rows: List[Dict[str, Any]],
+        feature_names_only: bool = True,
     ) -> OnlineResponse:
         """
         Retrieves the latest online feature data.
@@ -543,13 +546,21 @@ class FeatureStore:
 
                 if feature_data is None:
                     for feature_name in requested_features:
-                        feature_ref = f"{feature_name}" if feature_names_only else f"{table.name}__{feature_name}"
+                        feature_ref = (
+                            f"{feature_name}"
+                            if feature_names_only
+                            else f"{table.name}__{feature_name}"
+                        )
                         result_row.statuses[
                             feature_ref
                         ] = GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND
                 else:
                     for feature_name in feature_data:
-                        feature_ref = f"{feature_name}" if feature_names_only else f"{table.name}__{feature_name}"
+                        feature_ref = (
+                            f"{feature_name}"
+                            if feature_names_only
+                            else f"{table.name}__{feature_name}"
+                        )
                         if feature_name in requested_features:
                             result_row.fields[feature_ref].CopyFrom(
                                 feature_data[feature_name]
@@ -578,7 +589,9 @@ def _entity_row_to_field_values(
 
 
 def _group_refs(
-    feature_refs: List[str], all_feature_views: List[FeatureView], feature_names_only:bool = True
+    feature_refs: List[str],
+    all_feature_views: List[FeatureView],
+    feature_names_only: bool = True,
 ) -> List[Tuple[FeatureView, List[str]]]:
     """ Get list of feature views and corresponding feature names based on feature references"""
 
@@ -589,9 +602,9 @@ def _group_refs(
     views_features = defaultdict(list)
 
     # feature set
-    feature_set = set() 
+    feature_set = set()
     # feature names that collide
-    feature_collision_set = set()  
+    feature_collision_set = set()
 
     for ref in feature_refs:
         view_name, feat_name = ref.split(":")
